@@ -1,0 +1,9 @@
+# 이 파일을 config/config.properties 로 복사한 뒤 값을 채워 주세요.
+# config.properties 는 .gitignore 에 등록되어 있어 저장소에 올라가지 않습니다.
+#
+# 환경 변수(CINESEAT_DB_URL / CINESEAT_DB_USERNAME / CINESEAT_DB_PASSWORD)를 쓰면
+# 이 파일의 값보다 환경 변수가 먼저 적용됩니다.
+
+db.url=jdbc:mysql://localhost:3306/moviedb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+db.username=root
+db.password=

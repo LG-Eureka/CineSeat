@@ -1,32 +1,22 @@
-### IntelliJ IDEA ###
+# 빌드 산출물
+build/
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
 bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
+*.class
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# 의존 라이브러리 (직접 내려받아 넣습니다)
+lib/*.jar
 
-### VS Code ###
+# 접속 정보
+config/config.properties
+
+# IDE
+.idea/
+*.iml
 .vscode/
+.classpath
+.project
+.settings/
 
-### Mac OS ###
+# OS
 .DS_Store
-
-# 제외할 디렉토리나 파일 추가
-/src/config/config.properties
