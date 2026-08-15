@@ -56,11 +56,13 @@ public final class CineSeatApp {
                     """
                     데이터베이스에 연결하지 못했습니다.
 
+                    %s
+
                     · MySQL 이 실행 중인지 확인해 주세요.
                     · db/schema.sql 을 실행해 테이블과 예시 데이터를 만들어 주세요.
                     · config/config.properties 의 접속 정보를 확인해 주세요.
 
-                    접속 대상: %s""".formatted(Database.describeTarget()),
+                    접속 대상: %s""".formatted(e.getMessage(), Database.describeTarget()),
                     "연결 실패", JOptionPane.ERROR_MESSAGE);
             return false;
         }
