@@ -141,6 +141,33 @@ export CINESEAT_DB_PASSWORD="비밀번호"
 > 추가한 다음 `com.cineseat.CineSeatApp` 을 실행하면 됩니다. 작업 디렉터리는 저장소 루트여야
 > `config/`, `db/`, `assets/` 를 찾을 수 있습니다.
 
+## 🎞 실제 상영작으로 데이터 채우기
+
+`db/schema.sql` 의 예시 영화 대신, 실제로 상영 중인 영화를 넣을 수 있습니다.
+[KOBIS(영화진흥위원회) 오픈 API](https://www.kobis.or.kr/kobisopenapi/) 에서 일별 박스오피스와
+영화 상세 정보를 받아 시드 SQL 을 만들어 주는 도구가 있습니다.
+
+```bash
+# 키는 https://www.kobis.or.kr/kobisopenapi/ 에서 무료로 발급받습니다.
+java tools/SeedMovies.java --key=발급받은키
+
+# 옵션: 기준일, 가져올 편수, 출력 경로
+java tools/SeedMovies.java --key=... --date=20260815 --count=8 --out=db/seed-movies.sql
+
+# 만들어진 SQL 적용
+mysql -u root -p < db/seed-movies.sql
+```
+
+- 제목 · 상영시간 · 관람등급은 API 에서 받아 오고, **가격은 API 가 주지 않으므로**
+  상영시간 150분 이상이면 15,000원, 그 외에는 12,000원으로 정합니다.
+- 상영관과 회차는 실제 극장 시간표가 아니라 이 프로젝트의 상영관 3곳에 맞춰 생성합니다.
+  순위가 높은 영화일수록 더 많은 상영관에 더 오래 걸립니다.
+- 앱은 이 도구를 쓰지 않습니다. 데이터를 한 번 받아 SQL 로 떨궈 두는 방식이라
+  애플리케이션에는 네트워크나 JSON 의존성이 생기지 않고 오프라인에서도 그대로 동작합니다.
+
+> ⚠️ 생성된 SQL 은 영화 · 상영일정 · **예매 데이터를 모두 지우고** 새로 넣습니다.
+> 남겨야 할 예매 내역이 있다면 먼저 백업해 주세요.
+
 ## 📁 프로젝트 구조
 
 ```
@@ -162,6 +189,7 @@ src/com/cineseat/
 db/schema.sql               테이블과 예시 데이터
 config/                     접속 정보 (예시 파일만 커밋)
 assets/                     앱 아이콘
+tools/SeedMovies.java       KOBIS API 로 실제 상영작 시드 SQL 생성
 run.sh                      컴파일 후 실행
 ```
 
