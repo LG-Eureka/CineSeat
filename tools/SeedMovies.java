@@ -25,13 +25,21 @@ import java.util.List;
  * <p>애플리케이션은 이 파일을 쓰지 않는다. 데이터를 한 번 받아 SQL 로 떨궈 두는 도구이므로
  * 앱 자체에는 네트워크나 JSON 의존성이 생기지 않는다.
  *
+ * <p>두 가지 방식을 지원한다.
+ *
  * <pre>
- *   java tools/SeedMovies.java --key=발급받은키
- *   java tools/SeedMovies.java --key=... --date=20260815 --count=8 --out=db/seed-movies.sql
+ *   java tools/SeedMovies.java                    키 없이 공개 박스오피스 페이지에서 가져온다
+ *   java tools/SeedMovies.java --key=발급받은키    오픈 API 로 가져온다 (상영시간·관람등급까지)
+ *   java tools/SeedMovies.java --date=20260815 --count=8 --out=db/seed-movies.sql
  * </pre>
  *
- * <p>키는 https://www.kobis.or.kr/kobisopenapi/ 에서 무료로 발급받을 수 있고,
+ * <p>키가 있으면 상영시간과 관람등급까지 정확히 받아 오므로 그쪽을 권한다.
+ * 키는 https://www.kobis.or.kr/kobisopenapi/ 에서 무료로 발급받을 수 있고,
  * {@code KOBIS_API_KEY} 환경 변수로도 넘길 수 있다.
+ *
+ * <p>키가 없으면 공개 박스오피스 페이지에서 실제 상영작 제목을 가져오되, 그 페이지가 주지 않는
+ * 상영시간과 관람등급은 기본값으로 채운다. 화면에서 직접 만든 값임을 알 수 있도록 실행할 때
+ * 어떤 값이 기본값인지 함께 출력한다.
  */
 public class SeedMovies {
 
@@ -39,6 +47,17 @@ public class SeedMovies {
             "https://www.kobis.or.kr/kobisopenapi/webservice/rest/boxoffice/searchDailyBoxOfficeList.xml";
     private static final String MOVIE_INFO_URL =
             "https://www.kobis.or.kr/kobisopenapi/webservice/rest/movie/searchMovieInfo.xml";
+
+    /** 키 없이 접근할 수 있는 공개 박스오피스 페이지. */
+    private static final String BOX_OFFICE_PAGE =
+            "https://www.kobis.or.kr/kobis/business/stat/boxs/findDailyBoxOfficeList.do";
+
+    /** 표의 제목 셀: mstView('movie','영화코드') ... title="영화 제목" */
+    private static final java.util.regex.Pattern BOX_OFFICE_ROW = java.util.regex.Pattern.compile(
+            "mstView\\('movie','(\\d+)'\\);return false;\"\\s*title=\"([^\"]*)\"");
+
+    /** 공개 페이지가 상영시간을 주지 않을 때 쓰는 값. */
+    private static final int DEFAULT_RUNNING_TIME = 110;
 
     private static final DateTimeFormatter TARGET_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -61,26 +80,26 @@ public class SeedMovies {
 
     public static void main(String[] args) throws Exception {
         String key = argValue(args, "--key", System.getenv("KOBIS_API_KEY"));
-        if (key == null || key.isBlank()) {
-            System.err.println("""
-                    KOBIS API 키가 필요합니다.
-
-                      java tools/SeedMovies.java --key=발급받은키
-
-                    키는 https://www.kobis.or.kr/kobisopenapi/ 에서 무료로 발급받을 수 있습니다.
-                    KOBIS_API_KEY 환경 변수로 넘겨도 됩니다.""");
-            System.exit(1);
-        }
 
         // 당일 집계는 아직 없으므로 기본값은 어제로 둔다.
         String date = argValue(args, "--date", LocalDate.now().minusDays(1).format(TARGET_DATE));
         int count = Integer.parseInt(argValue(args, "--count", "6"));
         Path out = Path.of(argValue(args, "--out", "db/seed-movies.sql"));
 
+        boolean useApi = key != null && !key.isBlank();
+        System.out.println(useApi
+                ? "KOBIS 오픈 API 로 " + date + " 기준 상영작을 가져옵니다."
+                : """
+                        키가 없어 공개 박스오피스 페이지에서 가져옵니다.
+                        제목은 실제 상영작이지만 상영시간과 관람등급은 기본값으로 채웁니다.
+                        정확한 값을 원하면 https://www.kobis.or.kr/kobisopenapi/ 에서
+                        무료 키를 발급받아 --key=... 로 넘겨 주세요.
+                        """);
+
         SeedMovies tool = new SeedMovies(key);
         List<Movie> movies;
         try {
-            movies = tool.fetchMovies(date, count);
+            movies = useApi ? tool.fetchMovies(date, count) : tool.fetchFromWeb(date, count);
         } catch (IllegalStateException e) {
             System.err.println(e.getMessage());
             System.exit(1);
@@ -138,6 +157,61 @@ public class SeedMovies {
                     movies.size(), title, runningTime, grade.isEmpty() ? "등급 미상" : grade);
         }
         return movies;
+    }
+
+    // ---------------------------------------------------------------- 키 없이 가져오기
+
+    /** 공개 박스오피스 페이지에서 순위와 제목을 뽑아낸다. */
+    List<Movie> fetchFromWeb(String targetDate, int count) throws Exception {
+        String day = LocalDate.parse(targetDate, TARGET_DATE).toString();
+        String form = "loadEnd=0&searchType=search"
+                + "&sSearchFrom=" + day + "&sSearchTo=" + day
+                + "&sMultiMovieYn=&sRepNationCd=&sWideAreaCd=";
+
+        HttpRequest request = HttpRequest.newBuilder(URI.create(BOX_OFFICE_PAGE))
+                .timeout(Duration.ofSeconds(20))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("User-Agent", "Mozilla/5.0 (CineSeat seed tool)")
+                .header("Referer", BOX_OFFICE_PAGE)
+                .POST(HttpRequest.BodyPublishers.ofString(form, StandardCharsets.UTF_8))
+                .build();
+        HttpResponse<String> response =
+                http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException("KOBIS 페이지 응답 오류: HTTP " + response.statusCode());
+        }
+
+        List<Movie> movies = new ArrayList<>();
+        java.util.regex.Matcher matcher = BOX_OFFICE_ROW.matcher(response.body());
+        while (matcher.find() && movies.size() < count) {
+            String code = matcher.group(1);
+            String title = unescapeHtml(matcher.group(2));
+            if (title.isBlank()) {
+                continue;
+            }
+            movies.add(new Movie(code, title, DEFAULT_RUNNING_TIME, 0, price(DEFAULT_RUNNING_TIME)));
+            System.out.printf("  %d. %s  (상영시간 %d분 · 전체관람가 — 둘 다 기본값)%n",
+                    movies.size(), title, DEFAULT_RUNNING_TIME);
+        }
+
+        if (movies.isEmpty()) {
+            throw new IllegalStateException("""
+                    박스오피스 표를 읽지 못했습니다.
+                    KOBIS 페이지 구조가 바뀌었을 수 있습니다. --key=... 로 오픈 API 를 쓰거나
+                    --date=YYYYMMDD 로 다른 날짜를 지정해 보세요.""");
+        }
+        return movies;
+    }
+
+    /** 제목에 섞여 들어오는 최소한의 HTML 엔티티만 되돌린다. */
+    static String unescapeHtml(String value) {
+        return value.replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&nbsp;", " ")
+                .trim();
     }
 
     private Document get(String url) throws Exception {
