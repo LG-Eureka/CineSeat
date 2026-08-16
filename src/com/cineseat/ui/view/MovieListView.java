@@ -64,7 +64,7 @@ public class MovieListView extends View {
 
     private JComponent buildMovieRow(Movie movie) {
         JLabel badge = Theme.badge(movie.ageLimitLabel(), ageLimitColor(movie.ageLimit()),
-                movie.ageLimit() == 0 ? Theme.TEXT_ON_ACCENT : Theme.TEXT);
+                Theme.TEXT_ON_ACCENT);
 
         JLabel title = Theme.heading(movie.title());
         title.setFont(Theme.font(Font.BOLD, 16));

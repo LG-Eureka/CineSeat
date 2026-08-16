@@ -44,21 +44,22 @@ import java.util.Set;
 public final class Theme {
 
     // 배경 계열
-    public static final Color BG = new Color(0x14161C);
-    public static final Color SURFACE = new Color(0x1D212A);
-    public static final Color SURFACE_HOVER = new Color(0x262B36);
-    public static final Color BORDER = new Color(0x333A48);
+    public static final Color BG = new Color(0xF4F6F8);
+    public static final Color SURFACE = new Color(0xFFFFFF);
+    public static final Color SURFACE_HOVER = new Color(0xEDF1F5);
+    public static final Color DISABLED_FILL = new Color(0xE4E8ED);
+    public static final Color BORDER = new Color(0xD8DEE6);
 
     // 글자 계열
-    public static final Color TEXT = new Color(0xF1F3F6);
-    public static final Color TEXT_MUTED = new Color(0x99A1B0);
-    public static final Color TEXT_ON_ACCENT = new Color(0x1A1405);
+    public static final Color TEXT = new Color(0x222E3A);
+    public static final Color TEXT_MUTED = new Color(0x6B7684);
+    public static final Color TEXT_ON_ACCENT = new Color(0xFFFFFF);
 
-    // 강조 계열
-    public static final Color ACCENT = new Color(0xE8B04B);
-    public static final Color ACCENT_HOVER = new Color(0xF2C067);
-    public static final Color DANGER = new Color(0xE0655F);
-    public static final Color SUCCESS = new Color(0x5FBE87);
+    // 강조 계열 — 원본에서 쓰던 로열 블루를 그대로 쓴다.
+    public static final Color ACCENT = new Color(65, 105, 225);
+    public static final Color ACCENT_HOVER = new Color(0x3457C5);
+    public static final Color DANGER = new Color(200, 50, 50);
+    public static final Color SUCCESS = new Color(0x2E9E63);
 
     private static final int ARC = 14;
     private static final String FAMILY = pickFontFamily();
@@ -136,6 +137,11 @@ public final class Theme {
         return new RoundButton(text, null, SURFACE_HOVER, DANGER, DANGER);
     }
 
+    /** 파란 머리말 띠 위에 올리는 버튼. 흰 글자에 어두운 파랑으로 반응한다. */
+    public static JButton onAccentGhost(String text) {
+        return new RoundButton(text, null, ACCENT_HOVER, TEXT_ON_ACCENT, null);
+    }
+
     /** 둥근 배경을 직접 그리는 버튼. 플랫폼별 기본 버튼 모양에 영향을 받지 않는다. */
     public static class RoundButton extends JButton {
 
@@ -177,7 +183,7 @@ public final class Theme {
 
             Color background = getModel().isRollover() && isEnabled() ? fillHover : fill;
             if (background != null) {
-                g2.setColor(isEnabled() ? background : SURFACE);
+                g2.setColor(isEnabled() ? background : DISABLED_FILL);
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), ARC, ARC);
             }
             if (line != null) {
@@ -340,7 +346,7 @@ public final class Theme {
     private static <T extends JTextField> T style(T field) {
         field.setFont(font(Font.PLAIN, 14));
         field.setForeground(TEXT);
-        field.setBackground(SURFACE_HOVER);
+        field.setBackground(SURFACE);
         field.setCaretColor(ACCENT);
         field.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER),
@@ -370,7 +376,7 @@ public final class Theme {
         @Override
         protected void configureScrollBarColors() {
             thumbColor = BORDER;
-            trackColor = BG;
+            trackColor = SURFACE;
         }
 
         @Override
@@ -399,7 +405,7 @@ public final class Theme {
         protected void paintThumb(Graphics g, JComponent c, java.awt.Rectangle bounds) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(isThumbRollover() ? TEXT_MUTED : BORDER);
+            g2.setColor(isThumbRollover() ? TEXT_MUTED : BORDER.darker());
             g2.fillRoundRect(bounds.x + 1, bounds.y, bounds.width - 2, bounds.height, 8, 8);
             g2.dispose();
         }
@@ -409,7 +415,8 @@ public final class Theme {
 
     /** 대화 상자처럼 직접 그리지 않는 기본 컴포넌트에도 같은 톤을 적용한다. */
     public static void applyGlobalDefaults() {
-        Arrays.asList("Panel.background", "OptionPane.background").forEach(key -> UIManager.put(key, SURFACE));
+        Arrays.asList("Panel.background", "OptionPane.background", "OptionPane.messageAreaBackground")
+                .forEach(key -> UIManager.put(key, SURFACE));
         UIManager.put("OptionPane.messageForeground", TEXT);
         UIManager.put("OptionPane.messageFont", font(Font.PLAIN, 14));
         UIManager.put("OptionPane.buttonFont", font(Font.BOLD, 13));

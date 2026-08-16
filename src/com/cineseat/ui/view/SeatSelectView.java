@@ -120,7 +120,7 @@ public class SeatSelectView extends View {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Theme.SURFACE_HOVER);
+                g2.setColor(Theme.DISABLED_FILL);
                 g2.fillRoundRect(getWidth() / 6, 4, getWidth() * 2 / 3, getHeight() - 8, 6, 6);
                 g2.dispose();
                 super.paintComponent(g);
@@ -165,9 +165,9 @@ public class SeatSelectView extends View {
 
     private JComponent buildLegend() {
         JPanel legend = Theme.panel(new FlowLayout(FlowLayout.CENTER, 20, 0));
-        legend.add(buildLegendItem(Theme.SURFACE_HOVER, "선택 가능"));
+        legend.add(buildLegendItem(Theme.SURFACE, "선택 가능"));
         legend.add(buildLegendItem(Theme.ACCENT, "선택한 좌석"));
-        legend.add(buildLegendItem(Theme.SURFACE, "예매 완료"));
+        legend.add(buildLegendItem(Theme.DISABLED_FILL, "예매 완료"));
         return legend;
     }
 
@@ -335,22 +335,23 @@ public class SeatSelectView extends View {
 
             Color fill;
             if (!isEnabled()) {
-                fill = Theme.SURFACE;
+                fill = Theme.DISABLED_FILL;
             } else if (isSelected()) {
                 fill = Theme.ACCENT;
             } else if (getModel().isRollover()) {
-                fill = Theme.BORDER;
-            } else {
                 fill = Theme.SURFACE_HOVER;
+            } else {
+                fill = Theme.SURFACE;
             }
 
             g2.setColor(fill);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
 
             if (!isEnabled()) {
-                // 이미 팔린 좌석: 테두리만 남기고 좌석 번호를 흐리게 그린다.
+                // 이미 팔린 좌석: 좌석 번호를 흐리게 그리고 누를 수 없음을 색으로 알린다.
                 g2.setColor(Theme.BORDER);
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                g2.setColor(Theme.TEXT_MUTED);
                 g2.setFont(getFont());
                 FontMetrics metrics = g2.getFontMetrics();
                 int x = (getWidth() - metrics.stringWidth(seatName)) / 2;
@@ -358,6 +359,12 @@ public class SeatSelectView extends View {
                 g2.drawString(seatName, x, y);
                 g2.dispose();
                 return;
+            }
+
+            if (!isSelected()) {
+                // 흰 카드 위의 흰 좌석이 묻히지 않도록 테두리를 그린다.
+                g2.setColor(Theme.BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
             }
             g2.dispose();
 

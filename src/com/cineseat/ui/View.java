@@ -49,9 +49,13 @@ public abstract class View extends JPanel {
     // ---------------------------------------------------------------- 뼈대
 
     private JComponent buildHeader() {
-        JPanel brandRow = Theme.panel(new BorderLayout());
-        brandRow.add(buildBrand(), BorderLayout.WEST);
-        brandRow.add(buildAccountChip(), BorderLayout.EAST);
+        // 원본 화면들이 공통으로 갖고 있던 상단 로열 블루 띠.
+        JPanel brandBar = Theme.panel(new BorderLayout());
+        brandBar.setOpaque(true);
+        brandBar.setBackground(Theme.ACCENT);
+        brandBar.setBorder(new EmptyBorder(13, 32, 13, 32));
+        brandBar.add(buildBrand(), BorderLayout.WEST);
+        brandBar.add(buildAccountChip(), BorderLayout.EAST);
 
         JPanel titleBlock = Theme.panel(null);
         titleBlock.setLayout(new BoxLayout(titleBlock, BoxLayout.Y_AXIS));
@@ -60,15 +64,11 @@ public abstract class View extends JPanel {
         titleBlock.add(titleLabel);
         titleBlock.add(Box.createVerticalStrut(4));
         titleBlock.add(subtitleLabel);
-        titleBlock.setBorder(new EmptyBorder(20, 0, 0, 0));
-
-        JPanel header = Theme.panel(new BorderLayout());
-        header.setBorder(new EmptyBorder(24, 32, 20, 32));
-        header.add(brandRow, BorderLayout.NORTH);
-        header.add(titleBlock, BorderLayout.CENTER);
+        titleBlock.setBorder(new EmptyBorder(22, 32, 18, 32));
 
         JPanel wrapper = Theme.panel(new BorderLayout());
-        wrapper.add(header, BorderLayout.CENTER);
+        wrapper.add(brandBar, BorderLayout.NORTH);
+        wrapper.add(titleBlock, BorderLayout.CENTER);
         wrapper.add(Theme.divider(), BorderLayout.SOUTH);
         return wrapper;
     }
@@ -76,7 +76,7 @@ public abstract class View extends JPanel {
     private JComponent buildBrand() {
         JLabel mark = new JLabel("◗ CINESEAT");
         mark.setFont(Theme.font(Font.BOLD, 15));
-        mark.setForeground(Theme.ACCENT);
+        mark.setForeground(Theme.TEXT_ON_ACCENT);
         return mark;
     }
 
@@ -87,11 +87,15 @@ public abstract class View extends JPanel {
             return headerActions;
         }
 
-        JPanel chip = Theme.panel(new BorderLayout(12, 0));
-        chip.add(Theme.muted(user.username() + " 님"), BorderLayout.WEST);
+        JLabel name = new JLabel(user.username() + " 님");
+        name.setFont(Theme.font(Font.PLAIN, 13));
+        name.setForeground(Theme.TEXT_ON_ACCENT);
 
-        JButton signOut = Theme.ghost("로그아웃");
-        signOut.setBorder(new EmptyBorder(2, 8, 2, 0));
+        JPanel chip = Theme.panel(new BorderLayout(12, 0));
+        chip.add(name, BorderLayout.WEST);
+
+        JButton signOut = Theme.onAccentGhost("로그아웃");
+        signOut.setBorder(new EmptyBorder(3, 10, 3, 10));
         signOut.setFont(Theme.font(Font.PLAIN, 13));
         signOut.addActionListener(e -> app.signOut());
         chip.add(signOut, BorderLayout.EAST);
