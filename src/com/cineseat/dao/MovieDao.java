@@ -2,6 +2,7 @@ package com.cineseat.dao;
 
 import com.cineseat.db.DataAccessException;
 import com.cineseat.db.Database;
+import com.cineseat.db.SqlValues;
 import com.cineseat.model.Movie;
 
 import java.sql.Connection;
@@ -27,7 +28,7 @@ public class MovieDao {
         List<Movie> movies = new ArrayList<>();
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setDate(1, java.sql.Date.valueOf(date));
+            ps.setString(1, SqlValues.text(date));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     movies.add(new Movie(

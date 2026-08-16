@@ -2,13 +2,13 @@ package com.cineseat.dao;
 
 import com.cineseat.db.DataAccessException;
 import com.cineseat.db.Database;
+import com.cineseat.db.SqlErrors;
 import com.cineseat.model.User;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Optional;
 
 /** 회원 가입 / 로그인 / 회원 조회. */
@@ -23,9 +23,10 @@ public class UserDao {
             ps.setString(2, password);
             ps.setInt(3, age);
             return ps.executeUpdate() > 0;
-        } catch (SQLIntegrityConstraintViolationException duplicate) {
-            return false;
         } catch (SQLException e) {
+            if (SqlErrors.isUniqueViolation(e)) {
+                return false;
+            }
             throw new DataAccessException("회원 가입에 실패했습니다.", e);
         }
     }

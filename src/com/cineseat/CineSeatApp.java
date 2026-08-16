@@ -46,24 +46,20 @@ public final class CineSeatApp {
         Theme.applyGlobalDefaults();
     }
 
-    /** DB 에 연결되지 않으면 빈 화면 대신 원인을 알려 주고 종료한다. */
+    /** DB 를 열지 못하면 빈 화면 대신 원인을 알려 주고 종료한다. */
     private static boolean checkDatabase() {
         try {
-            Database.verifyConnection();
+            Database.verifySchema();
             return true;
         } catch (DataAccessException e) {
             JOptionPane.showMessageDialog(null,
                     """
-                    데이터베이스에 연결하지 못했습니다.
+                    데이터베이스를 열지 못했습니다.
 
                     %s
 
-                    · MySQL 이 실행 중인지 확인해 주세요.
-                    · db/schema.sql 을 실행해 테이블과 예시 데이터를 만들어 주세요.
-                    · config/config.properties 의 접속 정보를 확인해 주세요.
-
-                    접속 대상: %s""".formatted(e.getMessage(), Database.describeTarget()),
-                    "연결 실패", JOptionPane.ERROR_MESSAGE);
+                    데이터베이스 파일: %s""".formatted(e.getMessage(), Database.filePath()),
+                    "실행할 수 없음", JOptionPane.ERROR_MESSAGE);
             return false;
         }
     }

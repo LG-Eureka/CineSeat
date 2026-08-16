@@ -7,72 +7,84 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Properties;
 
 /**
- * 접속 정보를 읽어 JDBC 연결을 만들어 준다.
+ * SQLite 데이터베이스 연결을 만들어 준다.
  *
- * <p>접속 정보는 {@code config/config.properties} 에서 읽고, 같은 이름의 환경 변수가
- * 있으면 그 값이 우선한다. 자격 증명은 저장소에 커밋하지 않으며 기본값도 두지 않는다.
- * 설정이 없으면 root 같은 계정으로 몰래 접속을 시도하는 대신 무엇을 채워야 하는지 알려 준다.
+ * <p>파일 하나로 동작하므로 따로 서버를 띄우거나 계정을 만들 필요가 없다. 기본값은
+ * {@code db/cineseat.db} 이고, 다른 경로를 쓰고 싶으면 {@code config/config.properties} 의
+ * {@code db.url} 이나 환경 변수 {@code CINESEAT_DB_URL} 로 바꿀 수 있다.
  */
 public final class Database {
 
+    /** 설정이 없을 때 쓰는 데이터베이스 파일. */
+    public static final String DEFAULT_URL = "jdbc:sqlite:db/cineseat.db";
+
     private static final Path CONFIG_FILE = Path.of("config", "config.properties");
 
-    private static Settings settings;
-
-    private record Settings(String url, String user, String password) {
-    }
+    private static String url;
 
     private Database() {
     }
 
     /** 새 연결을 연다. 호출한 쪽에서 try-with-resources 로 닫아야 한다. */
     public static Connection getConnection() {
-        Settings current = settings();
+        String target = url();
         try {
-            return DriverManager.getConnection(current.url(), current.user(), current.password());
+            Connection conn = DriverManager.getConnection(target);
+            applyPragmas(conn);
+            return conn;
         } catch (SQLException e) {
-            throw new DataAccessException("데이터베이스에 연결하지 못했습니다: " + current.url(), e);
-        }
-    }
-
-    /** 시작 시점에 접속 가능 여부를 확인한다. */
-    public static void verifyConnection() {
-        try (Connection ignored = getConnection()) {
-            // 연결에 성공하면 그대로 닫는다.
-        } catch (SQLException e) {
-            throw new DataAccessException("데이터베이스 연결 확인에 실패했습니다.", e);
-        }
-    }
-
-    /** 연결 실패 안내에 쓰는 접속 대상. 비밀번호는 포함하지 않는다. */
-    public static String describeTarget() {
-        try {
-            Settings current = settings();
-            return current.user() + "@" + current.url();
-        } catch (DataAccessException e) {
-            return "(설정 없음)";
+            throw new DataAccessException("데이터베이스를 열지 못했습니다: " + target, e);
         }
     }
 
     /**
-     * 설정을 처음 필요할 때 읽는다.
+     * 연결마다 적용해야 하는 설정.
      *
-     * <p>클래스 초기화 중에 예외를 던지면 {@code ExceptionInInitializerError} 로 바뀌어
-     * 화면에서 원인을 안내할 수 없기 때문에, 읽는 시점을 호출 시점으로 미뤘다.
+     * <p>SQLite 는 외래키 검사가 기본으로 꺼져 있어 연결할 때마다 켜 줘야 하고,
+     * 다른 곳에서 쓰고 있을 때 곧바로 실패하지 않도록 대기 시간을 준다.
      */
-    private static synchronized Settings settings() {
-        if (settings == null) {
-            Properties props = loadProperties();
-            settings = new Settings(
-                    require(props, "db.url", "CINESEAT_DB_URL"),
-                    require(props, "db.username", "CINESEAT_DB_USERNAME"),
-                    // 비밀번호는 비어 있을 수 있으므로 값이 없으면 빈 문자열로 둔다.
-                    resolve(props, "db.password", "CINESEAT_DB_PASSWORD", ""));
+    private static void applyPragmas(Connection conn) throws SQLException {
+        try (Statement st = conn.createStatement()) {
+            st.execute("PRAGMA foreign_keys = ON");
+            st.execute("PRAGMA busy_timeout = 5000");
         }
-        return settings;
+    }
+
+    /** 테이블이 준비되어 있는지 확인한다. */
+    public static void verifySchema() {
+        try (Connection conn = getConnection();
+             Statement st = conn.createStatement()) {
+            st.executeQuery("SELECT 1 FROM movie LIMIT 1").close();
+        } catch (SQLException e) {
+            throw new DataAccessException("""
+                    테이블을 찾지 못했습니다. 아래 명령으로 데이터베이스를 만들어 주세요.
+
+                        sqlite3 %s < db/schema.sql
+
+                    ./run.sh 로 실행하면 없을 때 자동으로 만들어 줍니다."""
+                    .formatted(filePath()), e);
+        }
+    }
+
+    /** 연결 실패 안내에 쓰는 데이터베이스 파일 경로. */
+    public static String filePath() {
+        String target = url();
+        return target.startsWith("jdbc:sqlite:") ? target.substring("jdbc:sqlite:".length()) : target;
+    }
+
+    private static synchronized String url() {
+        if (url == null) {
+            Properties props = loadProperties();
+            String fromEnv = System.getenv("CINESEAT_DB_URL");
+            url = fromEnv != null && !fromEnv.isBlank()
+                    ? fromEnv
+                    : props.getProperty("db.url", DEFAULT_URL);
+        }
+        return url;
     }
 
     private static Properties loadProperties() {
@@ -86,24 +98,5 @@ public final class Database {
             }
         }
         return props;
-    }
-
-    private static String require(Properties props, String key, String envKey) {
-        String value = resolve(props, key, envKey, null);
-        if (value == null || value.isBlank()) {
-            throw new DataAccessException(
-                    key + " 값이 없습니다. config/config.properties.example 을 "
-                            + "config/config.properties 로 복사해 채우거나 환경 변수 "
-                            + envKey + " 를 설정해 주세요.");
-        }
-        return value;
-    }
-
-    private static String resolve(Properties props, String key, String envKey, String fallback) {
-        String fromEnv = System.getenv(envKey);
-        if (fromEnv != null && !fromEnv.isBlank()) {
-            return fromEnv;
-        }
-        return props.getProperty(key, fallback);
     }
 }

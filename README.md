@@ -1,6 +1,6 @@
 # CineSeat
 
-Java Swing 과 MySQL 로 만든 영화 좌석 예매 데스크톱 애플리케이션입니다.
+Java Swing 과 SQLite 로 만든 영화 좌석 예매 데스크톱 애플리케이션입니다.
 날짜를 고르고 회차를 정한 다음 좌석을 누르면 예매가 끝납니다.
 
 > 백엔드 미니 프로젝트로 만든 좌석 예매 서비스를 UI · 기능 · 구조 면에서 정리한 저장소입니다.
@@ -54,45 +54,45 @@ flowchart LR
 ```mermaid
 erDiagram
     users {
-        int id PK
-        varchar username UK
-        varchar password
-        int age
+        integer id PK
+        text username UK
+        text password
+        integer age
     }
     movie {
-        int id PK
-        varchar title
-        int price
-        int age_limit
-        int running_time
+        integer id PK
+        text title
+        integer price
+        integer age_limit
+        integer running_time
     }
     place {
-        int id PK
-        varchar name
-        varchar addr
+        integer id PK
+        text name
+        text addr
     }
     screen {
-        int id PK
-        int movie_id FK
-        int place_id FK
-        date start_date
-        date end_date
-        time start_time
-        int total_seats
+        integer id PK
+        integer movie_id FK
+        integer place_id FK
+        text start_date
+        text end_date
+        text start_time
+        integer total_seats
     }
     reserve {
-        int id PK
-        varchar username FK
-        int movie_id FK
-        int place_id FK
-        date reserve_date
-        time reserve_time
-        int reserve_cnt
-        varchar seat
-        int price
-        timestamp ins_dt
-        char delete_fg
-        timestamp del_dt
+        integer id PK
+        text username FK
+        integer movie_id FK
+        integer place_id FK
+        text reserve_date
+        text reserve_time
+        integer reserve_cnt
+        text seat
+        integer price
+        text ins_dt
+        text delete_fg
+        text del_dt
     }
 
     users ||--o{ reserve : "예매한다"
@@ -106,40 +106,39 @@ erDiagram
   시간대를 `11:00|14:00|17:00` 처럼 한 칸에 몰아 넣지 않기 때문에 회차를 그대로 조회할 수 있습니다.
 - `reserve` 는 취소해도 행을 지우지 않고 `delete_fg` 를 `Y` 로 바꿉니다. 취소 이력이 남습니다.
 - 좌석은 `A1,A2` 처럼 저장하고, 같은 회차에 이미 팔린 좌석과 겹치는지 확인한 뒤 저장합니다.
+- SQLite 에는 날짜/시각 전용 타입이 없어 `2026-08-16`, `14:30:00` 형식의 문자열로 저장합니다.
+  이 형식이면 문자열 비교만으로 순서와 범위 비교가 정확히 맞아떨어집니다.
 
 ## 🚀 실행 방법
 
-**필요한 것** — JDK 17 이상, MySQL 8 이상, [MySQL Connector/J](https://dev.mysql.com/downloads/connector/j/)
+**필요한 것** — JDK 17 이상. 그게 전부입니다.
 
 ```bash
-# 1. 데이터베이스와 예시 데이터 만들기 (상영 일정은 실행한 날짜를 기준으로 생성됩니다)
-mysql -u root -p < db/schema.sql
-
-# 2. MySQL 커넥터 JAR 을 lib/ 에 넣기
-mkdir -p lib && cp ~/Downloads/mysql-connector-j-*.jar lib/
-
-# 3. 접속 정보 설정
-cp config/config.properties.example config/config.properties
-$EDITOR config/config.properties
-
-# 4. 실행
 ./run.sh
 ```
 
-`config/config.properties` 는 `.gitignore` 에 등록되어 있어 저장소에 올라가지 않습니다.
-CI 처럼 파일을 두기 어려운 환경에서는 환경 변수로 대신할 수 있습니다.
+데이터베이스는 SQLite 파일 하나(`db/cineseat.db`)라서 서버를 띄우거나 계정을 만들 필요가 없습니다.
+`run.sh` 가 처음 실행될 때 아래를 알아서 처리합니다.
+
+1. SQLite JDBC 드라이버를 `lib/` 에 내려받습니다.
+2. 소스를 컴파일합니다.
+3. `db/schema.sql` 로 데이터베이스와 예시 데이터를 만듭니다.
+   (상영 일정은 실행한 날짜를 기준으로 생성되므로 언제 실행해도 예매할 수 있습니다.)
 
 ```bash
-export CINESEAT_DB_URL="jdbc:mysql://localhost:3306/moviedb"
-export CINESEAT_DB_USERNAME="root"
-export CINESEAT_DB_PASSWORD="비밀번호"
+./run.sh --reset   # 데이터베이스를 지우고 예시 데이터로 다시 만든 뒤 실행
+./run.sh --clean   # 컴파일 결과를 지우고 처음부터 빌드
 ```
 
 예시 계정은 `user1 / test1234`, `test / test1234` 입니다.
 
+데이터베이스 파일 위치를 바꾸려면 `config/config.properties` 의 `db.url` 이나
+환경 변수 `CINESEAT_DB_URL` 을 쓰면 됩니다. 설정하지 않으면 `db/cineseat.db` 를 씁니다.
+
 > IntelliJ 에서 실행할 때는 `src` 를 소스 루트로 지정하고, `lib/` 의 JAR 을 모듈 라이브러리로
 > 추가한 다음 `com.cineseat.CineSeatApp` 을 실행하면 됩니다. 작업 디렉터리는 저장소 루트여야
-> `config/`, `db/`, `assets/` 를 찾을 수 있습니다.
+> `db/`, `assets/` 를 찾을 수 있습니다. (`./run.sh` 를 한 번 돌려 두면 드라이버와 데이터베이스가
+> 준비됩니다.)
 
 ## 🎞 실제 상영작으로 데이터 채우기
 
@@ -158,7 +157,7 @@ java tools/SeedMovies.java --key=발급받은키
 java tools/SeedMovies.java --date=20260815 --count=8 --out=db/seed-movies.sql
 
 # 만들어진 SQL 적용
-mysql -u root -p < db/seed-movies.sql
+sqlite3 db/cineseat.db < db/seed-movies.sql
 ```
 
 | | 키 없이 | 키 사용 (`--key=`) |
@@ -186,6 +185,8 @@ src/com/cineseat/
 ├── CineSeatApp.java        진입점. 룩앤필 적용과 DB 연결 확인
 ├── db/
 │   ├── Database.java       설정 로딩과 커넥션 생성
+│   ├── SqlValues.java      날짜·시각 ↔ 문자열 변환
+│   ├── SqlErrors.java      제약 위반 판별
 │   └── DataAccessException.java
 ├── model/                  User · Movie · Screening · Reservation (record)
 ├── dao/                    UserDao · MovieDao · ScreeningDao · ReservationDao
@@ -197,10 +198,11 @@ src/com/cineseat/
     ├── Dialogs.java        알림 · 확인 대화 상자
     └── view/               화면 10개
 
-db/schema.sql               테이블과 예시 데이터
-config/                     접속 정보 (예시 파일만 커밋)
+db/schema.sql               테이블과 예시 데이터 (SQLite)
+config/                     데이터베이스 위치 설정 (선택)
 assets/                     앱 아이콘
-tools/SeedMovies.java       KOBIS API 로 실제 상영작 시드 SQL 생성
+tools/SeedMovies.java       KOBIS 에서 실제 상영작 시드 SQL 생성
+tools/InitDb.java           SQL 파일로 데이터베이스 생성
 run.sh                      컴파일 후 실행
 ```
 
@@ -236,10 +238,11 @@ run.sh                      컴파일 후 실행
 | 화면마다 새 `JFrame` 을 띄워 창이 쌓임 | 창 하나에서 화면만 교체 |
 | 화면마다 색 · 여백 · 글꼴을 따로 지정 | `Theme` 와 `View` 로 공통화 |
 | 디버깅용 `System.out.println` 이 곳곳에 남아 있음 | 모두 제거 |
+| MySQL 서버와 계정이 있어야만 실행할 수 있었음 | SQLite 파일 하나로 바꿔 `./run.sh` 만으로 실행되도록 변경 |
 
 **UI**
 
-- 어두운 배경에 금색을 강조로 쓰는 한 가지 톤으로 통일했습니다.
+- 원본이 쓰던 밝은 배경과 로열 블루를 유지하되, 화면마다 제각각이던 여백과 색을 하나로 맞췄습니다.
 - 좌석은 스크린 위치 · 통로 · 행 번호를 그려 실제 상영관처럼 보이도록 했습니다.
 - 선택 가능 / 선택한 좌석 / 예매 완료를 색과 범례로 구분했습니다.
 - 입력 오류는 대화 상자 대신 입력 칸 아래에 바로 표시합니다.

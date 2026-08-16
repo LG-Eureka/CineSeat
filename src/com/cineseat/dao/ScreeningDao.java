@@ -2,6 +2,7 @@ package com.cineseat.dao;
 
 import com.cineseat.db.DataAccessException;
 import com.cineseat.db.Database;
+import com.cineseat.db.SqlValues;
 import com.cineseat.model.Screening;
 
 import java.sql.Connection;
@@ -29,8 +30,8 @@ public class ScreeningDao {
              Statement st = conn.createStatement();
              ResultSet rs = st.executeQuery(sql)) {
             while (rs.next()) {
-                LocalDate start = rs.getDate("start_date").toLocalDate();
-                LocalDate end = rs.getDate("end_date").toLocalDate();
+                LocalDate start = SqlValues.date(rs, "start_date");
+                LocalDate end = SqlValues.date(rs, "end_date");
                 for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
                     dates.add(d);
                 }
@@ -61,9 +62,9 @@ public class ScreeningDao {
         List<Screening> screenings = new ArrayList<>();
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setDate(1, java.sql.Date.valueOf(date));
+            ps.setString(1, SqlValues.text(date));
             ps.setInt(2, movieId);
-            ps.setDate(3, java.sql.Date.valueOf(date));
+            ps.setString(3, SqlValues.text(date));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     screenings.add(new Screening(
@@ -72,7 +73,7 @@ public class ScreeningDao {
                             rs.getInt("place_id"),
                             rs.getString("place_name"),
                             date,
-                            rs.getTime("start_time").toLocalTime(),
+                            SqlValues.time(rs, "start_time"),
                             rs.getInt("total_seats"),
                             rs.getInt("reserved_seats")));
                 }

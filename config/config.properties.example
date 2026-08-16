@@ -1,9 +1,6 @@
-# 이 파일을 config/config.properties 로 복사한 뒤 값을 채워 주세요.
-# config.properties 는 .gitignore 에 등록되어 있어 저장소에 올라가지 않습니다.
+# 이 파일은 없어도 됩니다. 기본값(db/cineseat.db)으로 동작합니다.
+# 데이터베이스 파일 위치를 바꾸고 싶을 때만 config/config.properties 로 복사해 쓰세요.
 #
-# 환경 변수(CINESEAT_DB_URL / CINESEAT_DB_USERNAME / CINESEAT_DB_PASSWORD)를 쓰면
-# 이 파일의 값보다 환경 변수가 먼저 적용됩니다.
+# 환경 변수 CINESEAT_DB_URL 을 쓰면 이 파일보다 먼저 적용됩니다.
 
-db.url=jdbc:mysql://localhost:3306/moviedb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-db.username=root
-db.password=
+db.url=jdbc:sqlite:db/cineseat.db

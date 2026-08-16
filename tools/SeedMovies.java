@@ -116,7 +116,9 @@ public class SeedMovies {
 
         System.out.println();
         System.out.println(out + " 생성 완료 (영화 " + movies.size() + "편)");
-        System.out.println("적용:  mysql -u root -p < " + out);
+        System.out.println("적용:  sqlite3 db/cineseat.db < " + out);
+        System.out.println("       (sqlite3 명령이 없으면: "
+                + "java -cp \"build/tools:lib/*\" InitDb " + out + ")");
     }
 
     SeedMovies(String apiKey) {
@@ -282,12 +284,11 @@ public class SeedMovies {
         sql.append("-- 기준일: ").append(targetDate).append('\n');
         sql.append("-- 생성일: ").append(LocalDate.now()).append("\n\n");
 
-        sql.append("USE moviedb;\n\n");
+        sql.append("PRAGMA foreign_keys = ON;\n\n");
         sql.append("DELETE FROM reserve;\n");
         sql.append("DELETE FROM screen;\n");
         sql.append("DELETE FROM movie;\n");
-        sql.append("ALTER TABLE movie AUTO_INCREMENT = 1;\n");
-        sql.append("ALTER TABLE screen AUTO_INCREMENT = 1;\n\n");
+        sql.append("DELETE FROM sqlite_sequence WHERE name IN ('movie', 'screen');\n\n");
 
         sql.append("INSERT INTO movie (id, title, price, age_limit, running_time) VALUES\n");
         for (int i = 0; i < movies.size(); i++) {
@@ -309,7 +310,8 @@ public class SeedMovies {
             for (int place = 1; place <= placeCount; place++) {
                 String[] times = TIME_TABLES[(i + place - 1) % TIME_TABLES.length];
                 for (String time : times) {
-                    rows.add("    (%d, %d, CURDATE(), CURDATE() + INTERVAL %d DAY, '%s', %d)"
+                    rows.add(("    (%d, %d, date('now','localtime'), "
+                            + "date('now','localtime','+%d days'), '%s', %d)")
                             .formatted(movieId, place, runDays, time, PLACE_SEATS[place - 1]));
                 }
             }

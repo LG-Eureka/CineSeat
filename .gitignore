@@ -23,3 +23,5 @@ config/config.properties
 
 # 생성된 시드 데이터 (tools/SeedMovies.java 결과)
 db/seed-movies.sql
+# 데이터베이스 파일
+db/*.db
