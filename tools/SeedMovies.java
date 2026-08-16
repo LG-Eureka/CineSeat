@@ -127,7 +127,9 @@ public class SeedMovies {
 
     List<Movie> fetchMovies(String targetDate, int count) throws Exception {
         Document boxOffice = get(BOX_OFFICE_URL + "?key=" + apiKey + "&targetDt=" + targetDate);
-        NodeList entries = boxOffice.getElementsByTagName("dailyBoxOfficeList");
+        // XML 응답에서 dailyBoxOfficeList 는 목록을 감싸는 껍데기이고,
+        // 실제 항목은 그 안의 dailyBoxOffice 다. (JSON 응답과 이름 쓰임이 다르다)
+        NodeList entries = boxOffice.getElementsByTagName("dailyBoxOffice");
 
         List<Movie> movies = new ArrayList<>();
         for (int i = 0; i < entries.getLength() && movies.size() < count; i++) {
